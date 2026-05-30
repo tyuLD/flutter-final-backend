@@ -38,6 +38,7 @@ class AuthService:
             )
 
         return {
+            "user_id": user.id,
             "message": "login success",
             "username": user.username
         }
