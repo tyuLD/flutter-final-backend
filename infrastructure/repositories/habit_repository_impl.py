@@ -1,0 +1,192 @@
+from sqlalchemy.orm import Session
+from typing import List
+
+from infrastructure.db.models.habit_model import HabitModel
+from infrastructure.db.models.habit_checkin_model import HabitCheckinModel
+from domain.entities.habit import HabitEntity, CheckInEntity
+from domain.repositories.habit_repository import HabitRepository
+
+
+class HabitRepositoryImpl(HabitRepository):
+    def __init__(self, db: Session):
+        self.db = db
+
+    def list_habits(self, user_id: int) -> List[HabitEntity]:
+        rows = self.db.query(HabitModel).filter(HabitModel.user_id == user_id).all()
+        return [HabitEntity.from_orm(r) for r in rows]
+
+    def create_habit(self, user_id: int, **data) -> HabitEntity:
+        payload = {**data, "user_id": user_id}
+        habit = HabitModel(**payload)
+        self.db.add(habit)
+        self.db.commit()
+        self.db.refresh(habit)
+        return HabitEntity.from_orm(habit)
+
+    def get_habit(self, habit_id: int, user_id: int = None):
+        q = self.db.query(HabitModel).filter(HabitModel.id == habit_id)
+        if user_id is not None:
+            q = q.filter(HabitModel.user_id == user_id)
+        row = q.first()
+        if not row:
+            return None
+        return HabitEntity.from_orm(row)
+
+    def update_habit(self, habit_id: int, user_id: int = None, **data):
+        q = self.db.query(HabitModel).filter(HabitModel.id == habit_id)
+        if user_id is not None:
+            q = q.filter(HabitModel.user_id == user_id)
+        row = q.first()
+        if not row:
+            return None
+        for k, v in data.items():
+            setattr(row, k, v)
+        self.db.add(row)
+        self.db.commit()
+        self.db.refresh(row)
+        return HabitEntity.from_orm(row)
+
+    def delete_habit(self, habit_id: int, user_id: int = None) -> None:
+        q = self.db.query(HabitModel).filter(HabitModel.id == habit_id)
+        if user_id is not None:
+            q = q.filter(HabitModel.user_id == user_id)
+        row = q.first()
+        if not row:
+            return
+        self.db.delete(row)
+        self.db.commit()
+
+    def create_checkin(self, habit_id: int, **data) -> CheckInEntity:
+        payload = {**data, "habit_id": habit_id}
+        checkin = HabitCheckinModel(**payload)
+        self.db.add(checkin)
+        self.db.commit()
+        self.db.refresh(checkin)
+        return CheckInEntity.from_orm(checkin)
+
+    def list_checkins(self, habit_id: int):
+        rows = self.db.query(HabitCheckinModel).filter(HabitCheckinModel.habit_id == habit_id).all()
+        return [CheckInEntity.from_orm(r) for r in rows]
+
+    def list_checkins_for_month(self, month: str):
+        """Aggregate checkins for the given month string 'YYYY-MM'. Returns dict with summary and days list."""
+        import calendar as _calendar
+        from datetime import datetime, date
+
+        year, mon = month.split("-")
+        year = int(year)
+        mon = int(mon)
+        _, last_day = _calendar.monthrange(year, mon)
+        start_date = date(year, mon, 1)
+        end_date = date(year, mon, last_day)
+
+        rows = (
+            self.db.query(HabitCheckinModel)
+            .filter(HabitCheckinModel.date >= start_date)
+            .filter(HabitCheckinModel.date <= end_date)
+            .all()
+        )
+
+        # build per-day aggregation
+        days_map = {}
+        for r in rows:
+            d = r.date.isoformat()
+            if d not in days_map:
+                days_map[d] = {"date": d, "completion_count": 0, "intensity": 0}
+            # treat any completed as count; intensity as number of checkins
+            if r.status == "completed":
+                days_map[d]["completion_count"] += 1
+            days_map[d]["intensity"] += 1
+
+        days = list(days_map.values())
+        total_days = last_day
+        completed_days = len([1 for v in days if v["completion_count"] > 0])
+        completion_rate = completed_days / total_days if total_days else 0.0
+
+        return {
+            "month": month,
+            "summary": {
+                "completed_days": completed_days,
+                "total_days": total_days,
+                "completion_rate": completion_rate,
+            },
+            "days": days,
+        }
+
+    def aggregate_stats(self):
+        """Return simplified stats overview aggregation."""
+        from datetime import date, timedelta
+
+        today = date.today()
+        seven_days_ago = today - timedelta(days=6)
+
+        # trend 7 days
+        trend_rows = (
+            self.db.query(HabitCheckinModel)
+            .filter(HabitCheckinModel.date >= seven_days_ago)
+            .all()
+        )
+
+        trend_map = {}
+        for i in range(7):
+            d = (seven_days_ago + timedelta(days=i)).isoformat()
+            trend_map[d] = 0
+
+        for r in trend_rows:
+            key = r.date.isoformat()
+            if key in trend_map:
+                if r.status == "completed":
+                    trend_map[key] += 1
+
+        trend_7_days = [{"date": k, "count": v} for k, v in trend_map.items()]
+
+        # simple totals for today
+        today_rows = (
+            self.db.query(HabitCheckinModel)
+            .filter(HabitCheckinModel.date == today)
+            .all()
+        )
+        today_completed = len([r for r in today_rows if r.status == "completed"])
+        today_total = len(today_rows)
+
+        # completion rate across all recorded days
+        all_rows = self.db.query(HabitCheckinModel).all()
+        days_with_completion = set([r.date.isoformat() for r in all_rows if r.status == "completed"])
+        unique_days = set([r.date.isoformat() for r in all_rows])
+        completion_rate = (len(days_with_completion) / len(unique_days)) if unique_days else 0.0
+
+        # streaks: naive calculation per habit current streak (approx)
+        # For simplicity, compute max_streak as max consecutive completed days overall
+        dates_completed = sorted(list(days_with_completion))
+        max_streak = 0
+        current_streak = 0
+        prev_date = None
+        from datetime import datetime as _dt
+        for d in dates_completed:
+            dt = _dt.fromisoformat(d).date()
+            if prev_date and (dt - prev_date).days == 1:
+                current_streak += 1
+            else:
+                current_streak = 1
+            if current_streak > max_streak:
+                max_streak = current_streak
+            prev_date = dt
+
+        return {
+            "completion_rate": completion_rate,
+            "today_completed": today_completed,
+            "today_total": today_total,
+            "average_streak": float(max_streak) if max_streak else 0.0,
+            "max_streak": max_streak,
+            "trend_7_days": trend_7_days,
+            "streak_distribution": {"long_term": 0, "building": 0, "new": 0},
+            "top_habits": [],
+        }
+
+    def profile_summary(self, user_id: int = None):
+        """Return a minimal profile structure. Real implementation should join users and settings."""
+        return {
+            "user": {"id": "user_001", "display_name": "習慣實踐者", "email": "habit.user@example.com", "avatar_url": None},
+            "summary": {"completion_rate": 0.0, "total_streak": 0, "best_habit": None},
+            "settings": {"notifications_enabled": True, "theme": "dark", "timezone": "Asia/Taipei"},
+        }
