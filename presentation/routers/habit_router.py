@@ -3,6 +3,7 @@ from typing import List
 
 from schemas.habit_schema import (
     HabitCreate,
+    HabitCreateResponse,
     HabitRead,
     HabitUpdate,
     CheckInCreate,
@@ -23,9 +24,13 @@ def list_habits(user_id: int = Query(..., description="User ID to list habits fo
     return habit_service.list_habits(user_id)
 
 
-@router.post("", response_model=HabitRead)
+@router.post("", response_model=HabitCreateResponse)
 def create_habit(user_id: int = Query(..., description="User ID that owns the habit"), data: HabitCreate = None, habit_service: HabitService = Depends(get_habit_service)):
-    return habit_service.create_habit(user_id, data)
+    try:
+        habit = habit_service.create_habit(user_id, data)
+        return {"message": "Habit created successfully", "data": habit}
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to create habit")
 
 
 @router.get("/{habit_id}", response_model=HabitRead)

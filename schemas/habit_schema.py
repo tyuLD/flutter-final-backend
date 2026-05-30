@@ -33,6 +33,11 @@ class HabitRead(HabitBase):
     updated_at: datetime
 
 
+class HabitCreateResponse(BaseModel):
+    message: str
+    data: HabitRead
+
+
 class CheckInCreate(BaseModel):
     date: date
     status: str

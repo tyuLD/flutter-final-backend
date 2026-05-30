@@ -39,7 +39,6 @@ dist/
 .ipynb_checkpoints/
 
 # Local databases and sqlite files
-app.db
 *.sqlite
 *.sqlite3
 

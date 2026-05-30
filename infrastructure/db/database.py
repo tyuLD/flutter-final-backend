@@ -1,11 +1,13 @@
 import os
-import warnings
+from pathlib import Path
 
 from sqlalchemy import create_engine
-from sqlalchemy.exc import ArgumentError
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from dotenv import load_dotenv
 
-DEFAULT_DATABASE_URL = "sqlite:///./app.db"
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+load_dotenv(ROOT_DIR / ".env", override=False)
 
 
 def normalize_database_url(database_url: str) -> str:
@@ -16,23 +18,17 @@ def normalize_database_url(database_url: str) -> str:
 
 
 raw_database_url = os.getenv("DATABASE_URL")
-DATABASE_URL = normalize_database_url(raw_database_url) if raw_database_url else DEFAULT_DATABASE_URL
+if not raw_database_url:
+    raise RuntimeError("DATABASE_URL is required. The local app.db fallback has been removed.")
+
+DATABASE_URL = normalize_database_url(raw_database_url)
 
 engine_kwargs = {}
 
 if DATABASE_URL.startswith("sqlite"):
     engine_kwargs["connect_args"] = {"check_same_thread": False}
 
-try:
-    engine = create_engine(DATABASE_URL, **engine_kwargs)
-except ArgumentError as exc:
-    warnings.warn(
-        f"Invalid DATABASE_URL value; falling back to {DEFAULT_DATABASE_URL}. Details: {exc}",
-        RuntimeWarning,
-    )
-    DATABASE_URL = DEFAULT_DATABASE_URL
-    engine_kwargs = {"connect_args": {"check_same_thread": False}}
-    engine = create_engine(DATABASE_URL, **engine_kwargs)
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

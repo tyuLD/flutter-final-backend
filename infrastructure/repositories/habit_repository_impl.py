@@ -1,10 +1,18 @@
 from sqlalchemy.orm import Session
 from typing import List
+from sqlalchemy.exc import ProgrammingError, OperationalError
 
 from infrastructure.db.models.habit_model import HabitModel
 from infrastructure.db.models.habit_checkin_model import HabitCheckinModel
 from domain.entities.habit import HabitEntity, CheckInEntity
 from domain.repositories.habit_repository import HabitRepository
+
+
+def _ensure_tables_exist():
+    # import here to avoid circular imports at module import time
+    from infrastructure.db.database import Base, engine
+
+    Base.metadata.create_all(bind=engine)
 
 
 class HabitRepositoryImpl(HabitRepository):
@@ -18,10 +26,23 @@ class HabitRepositoryImpl(HabitRepository):
     def create_habit(self, user_id: int, **data) -> HabitEntity:
         payload = {**data, "user_id": user_id}
         habit = HabitModel(**payload)
-        self.db.add(habit)
-        self.db.commit()
-        self.db.refresh(habit)
-        return HabitEntity.from_orm(habit)
+        try:
+            self.db.add(habit)
+            self.db.commit()
+            self.db.refresh(habit)
+            return HabitEntity.from_orm(habit)
+        except (ProgrammingError, OperationalError) as exc:
+            # likely missing table; try to create tables then retry once
+            self.db.rollback()
+            _ensure_tables_exist()
+            try:
+                self.db.add(habit)
+                self.db.commit()
+                self.db.refresh(habit)
+                return HabitEntity.from_orm(habit)
+            except Exception:
+                self.db.rollback()
+                raise
 
     def get_habit(self, habit_id: int, user_id: int = None):
         q = self.db.query(HabitModel).filter(HabitModel.id == habit_id)
@@ -59,10 +80,22 @@ class HabitRepositoryImpl(HabitRepository):
     def create_checkin(self, habit_id: int, **data) -> CheckInEntity:
         payload = {**data, "habit_id": habit_id}
         checkin = HabitCheckinModel(**payload)
-        self.db.add(checkin)
-        self.db.commit()
-        self.db.refresh(checkin)
-        return CheckInEntity.from_orm(checkin)
+        try:
+            self.db.add(checkin)
+            self.db.commit()
+            self.db.refresh(checkin)
+            return CheckInEntity.from_orm(checkin)
+        except (ProgrammingError, OperationalError):
+            self.db.rollback()
+            _ensure_tables_exist()
+            try:
+                self.db.add(checkin)
+                self.db.commit()
+                self.db.refresh(checkin)
+                return CheckInEntity.from_orm(checkin)
+            except Exception:
+                self.db.rollback()
+                raise
 
     def list_checkins(self, habit_id: int):
         rows = self.db.query(HabitCheckinModel).filter(HabitCheckinModel.habit_id == habit_id).all()

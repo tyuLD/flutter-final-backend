@@ -1,2 +1,4 @@
 啟動
 python -m fastapi dev main.py
+
+需要先設定 `DATABASE_URL`，專案已移除本機 `app.db` fallback。
