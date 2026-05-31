@@ -42,6 +42,7 @@ Response (示例):
   "reminder_time": "06:00",
   "minimum_action": "跑步3公里",
   "identity_label": "跑者",
+  "is_checked_in": false,
   "is_active": true,
   "created_at": "2026-05-27T08:00:00Z",
   "updated_at": "2026-05-27T08:00:00Z"
@@ -90,6 +91,7 @@ Response (示例):
   "reminder_time": "06:00",
   "minimum_action": "跑步3公里",
   "identity_label": "跑者",
+  "is_checked_in": true,
   "today_status": "completed",
   "current_streak": 15,
   "best_streak": 21,

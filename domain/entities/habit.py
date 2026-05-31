@@ -12,6 +12,7 @@ class HabitEntity(BaseModel):
     reminder_time: Optional[str] = None
     minimum_action: Optional[str] = None
     identity_label: Optional[str] = None
+    is_checked_in: bool = False
     is_active: bool = True
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

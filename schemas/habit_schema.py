@@ -28,6 +28,7 @@ class HabitUpdate(BaseModel):
 
 class HabitRead(HabitBase):
     id: int
+    is_checked_in: bool = False
     is_active: bool = True
     created_at: datetime
     updated_at: datetime

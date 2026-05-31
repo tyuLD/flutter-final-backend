@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from typing import List
 from sqlalchemy.exc import ProgrammingError, OperationalError
+from datetime import date, timedelta
 
 from infrastructure.db.models.habit_model import HabitModel
 from infrastructure.db.models.habit_checkin_model import HabitCheckinModel
@@ -19,9 +20,35 @@ class HabitRepositoryImpl(HabitRepository):
     def __init__(self, db: Session):
         self.db = db
 
+    def _habit_period_start(self, frequency_type: str) -> date:
+        today = date.today()
+        frequency = (frequency_type or "").lower()
+
+        if frequency == "weekly":
+            return today - timedelta(days=today.weekday())
+        if frequency == "monthly":
+            return today.replace(day=1)
+        return today
+
+    def _is_habit_checked_in(self, habit_id: int, frequency_type: str) -> bool:
+        period_start = self._habit_period_start(frequency_type)
+        row = (
+            self.db.query(HabitCheckinModel)
+            .filter(HabitCheckinModel.habit_id == habit_id)
+            .filter(HabitCheckinModel.date >= period_start)
+            .filter(HabitCheckinModel.status == "completed")
+            .first()
+        )
+        return row is not None
+
+    def _decorate_habit(self, row: HabitModel) -> HabitEntity:
+        habit = HabitEntity.from_orm(row)
+        habit.is_checked_in = self._is_habit_checked_in(row.id, row.frequency_type)
+        return habit
+
     def list_habits(self, user_id: int) -> List[HabitEntity]:
         rows = self.db.query(HabitModel).filter(HabitModel.user_id == user_id).all()
-        return [HabitEntity.from_orm(r) for r in rows]
+        return [self._decorate_habit(r) for r in rows]
 
     def create_habit(self, user_id: int, **data) -> HabitEntity:
         payload = {**data, "user_id": user_id}
@@ -30,7 +57,7 @@ class HabitRepositoryImpl(HabitRepository):
             self.db.add(habit)
             self.db.commit()
             self.db.refresh(habit)
-            return HabitEntity.from_orm(habit)
+            return self._decorate_habit(habit)
         except (ProgrammingError, OperationalError) as exc:
             # likely missing table; try to create tables then retry once
             self.db.rollback()
@@ -39,7 +66,7 @@ class HabitRepositoryImpl(HabitRepository):
                 self.db.add(habit)
                 self.db.commit()
                 self.db.refresh(habit)
-                return HabitEntity.from_orm(habit)
+                return self._decorate_habit(habit)
             except Exception:
                 self.db.rollback()
                 raise
@@ -51,7 +78,7 @@ class HabitRepositoryImpl(HabitRepository):
         row = q.first()
         if not row:
             return None
-        return HabitEntity.from_orm(row)
+        return self._decorate_habit(row)
 
     def update_habit(self, habit_id: int, user_id: int = None, **data):
         q = self.db.query(HabitModel).filter(HabitModel.id == habit_id)
@@ -65,7 +92,7 @@ class HabitRepositoryImpl(HabitRepository):
         self.db.add(row)
         self.db.commit()
         self.db.refresh(row)
-        return HabitEntity.from_orm(row)
+        return self._decorate_habit(row)
 
     def delete_habit(self, habit_id: int, user_id: int = None) -> None:
         q = self.db.query(HabitModel).filter(HabitModel.id == habit_id)
