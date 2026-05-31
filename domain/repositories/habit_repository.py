@@ -30,6 +30,11 @@ class HabitRepository(ABC):
         pass
 
     @abstractmethod
+    def delete_checkins_for_period(self, habit_id: int) -> None:
+        """Delete completed checkins for the current habit period (used for checkout/undo)."""
+        pass
+
+    @abstractmethod
     def list_checkins(self, habit_id: int):
         pass
 

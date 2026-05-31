@@ -124,6 +124,27 @@ class HabitRepositoryImpl(HabitRepository):
                 self.db.rollback()
                 raise
 
+    def delete_checkins_for_period(self, habit_id: int) -> None:
+        """Delete any 'completed' checkins for the habit within the current period.
+
+        Current period follows the same logic as _is_habit_checked_in (daily/weekly/monthly).
+        """
+        # get habit to determine frequency_type
+        habit = self.db.query(HabitModel).filter(HabitModel.id == habit_id).first()
+        if not habit:
+            return
+        period_start = self._habit_period_start(habit.frequency_type)
+        try:
+            q = self.db.query(HabitCheckinModel)
+            q = q.filter(HabitCheckinModel.habit_id == habit_id)
+            q = q.filter(HabitCheckinModel.date >= period_start)
+            q = q.filter(HabitCheckinModel.status == "completed")
+            q.delete(synchronize_session=False)
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+
     def list_checkins(self, habit_id: int):
         rows = self.db.query(HabitCheckinModel).filter(HabitCheckinModel.habit_id == habit_id).all()
         return [CheckInEntity.from_orm(r) for r in rows]

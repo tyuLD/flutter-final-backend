@@ -41,7 +41,6 @@ class HabitCreateResponse(BaseModel):
 
 class CheckInCreate(BaseModel):
     date: date
-    status: str
     note: Optional[str] = None
 
 

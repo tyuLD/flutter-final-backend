@@ -63,6 +63,15 @@ def create_checkin(habit_id: int, user_id: int = Query(..., description="User ID
         raise HTTPException(status_code=404, detail="Habit not found or not owned by user")
 
 
+@router.post("/{habit_id}/checkouts")
+def create_checkout(habit_id: int, user_id: int = Query(..., description="User ID"), habit_service: HabitService = Depends(get_habit_service)):
+    try:
+        habit_service.checkout(habit_id, user_id)
+        return {"ok": True}
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Habit not found or not owned by user")
+
+
 @router.get("/{habit_id}/checkins", response_model=List[CheckInRead])
 def list_checkins(habit_id: int, user_id: int = Query(..., description="User ID"), habit_service: HabitService = Depends(get_habit_service)):
     try:

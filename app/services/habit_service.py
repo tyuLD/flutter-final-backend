@@ -35,7 +35,16 @@ class HabitService:
         if not habit:
             raise ValueError("Habit not found or not owned by user")
         payload = data.dict()
+        # default status to 'completed' for check-in
+        payload.setdefault("status", "completed")
         return self.repo.create_checkin(habit_id, **payload)
+
+    def checkout(self, habit_id: int, user_id: int) -> None:
+        # verify habit belongs to user
+        habit = self.get_habit(habit_id, user_id=user_id)
+        if not habit:
+            raise ValueError("Habit not found or not owned by user")
+        return self.repo.delete_checkins_for_period(habit_id)
 
     def list_checkins(self, habit_id: int, user_id: int) -> List[CheckInEntity]:
         habit = self.get_habit(habit_id, user_id=user_id)
