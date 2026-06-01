@@ -13,6 +13,7 @@ class HabitEntity(BaseModel):
     minimum_action: Optional[str] = None
     identity_label: Optional[str] = None
     is_checked_in: bool = False
+    current_streak: int = 0
     is_active: bool = True
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

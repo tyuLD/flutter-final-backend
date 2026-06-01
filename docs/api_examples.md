@@ -1,5 +1,13 @@
 # API 範例與回傳格式
 
+Python 常用命名方式：
+
+- 變數、函式、模組、API 欄位：`snake_case`
+- 類別：`PascalCase`
+- 常數：`UPPER_SNAKE_CASE`
+
+本專案的 Habit API 範例以下方的 `snake_case` 為主，對應 Python 慣例。
+
 此檔列出目前後端實作的 Habit 與 Check-in 相關路由與範例請求/回傳。可作為前端介面對接參考。
 
 ## Endpoints
@@ -43,6 +51,7 @@ Response (示例):
   "minimum_action": "跑步3公里",
   "identity_label": "跑者",
   "is_checked_in": false,
+  "current_streak": 0,
   "is_active": true,
   "created_at": "2026-05-27T08:00:00Z",
   "updated_at": "2026-05-27T08:00:00Z"
@@ -78,7 +87,7 @@ Response (示例):
 ---
 
 ## 日常頁回傳（GET /habits，可在前端計算或後端提供附加欄位）
-建議回傳每個 habit 加入計算欄位：`today_status`, `current_streak`, `best_streak`, `is_synced`。
+建議回傳每個 habit 加入計算欄位：`is_checked_in`, `current_streak`, `is_active`。
 
 示例 item:
 
@@ -92,10 +101,10 @@ Response (示例):
   "minimum_action": "跑步3公里",
   "identity_label": "跑者",
   "is_checked_in": true,
-  "today_status": "completed",
   "current_streak": 15,
-  "best_streak": 21,
-  "is_synced": true
+  "is_active": true,
+  "created_at": "2026-05-27T08:00:00Z",
+  "updated_at": "2026-05-27T08:00:00Z"
 }
 ```
 

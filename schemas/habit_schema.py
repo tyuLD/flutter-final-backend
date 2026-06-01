@@ -1,15 +1,17 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, AliasChoices
 from typing import Optional, List, Dict
 from datetime import datetime, date
 
 
 class HabitBase(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     name: str
     description: Optional[str] = None
-    frequency_type: str
-    reminder_time: Optional[str] = None
-    minimum_action: Optional[str] = None
-    identity_label: Optional[str] = None
+    frequency_type: str = Field(validation_alias=AliasChoices("frequencyType", "frequency_type"))
+    reminder_time: Optional[str] = Field(default=None, validation_alias=AliasChoices("reminderTime", "reminder_time"))
+    minimum_action: Optional[str] = Field(default=None, validation_alias=AliasChoices("minimumAction", "minimum_action"))
+    identity_label: Optional[str] = Field(default=None, validation_alias=AliasChoices("identityLabel", "identity_label"))
 
 
 class HabitCreate(HabitBase):
@@ -17,19 +19,22 @@ class HabitCreate(HabitBase):
 
 
 class HabitUpdate(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     name: Optional[str] = None
     description: Optional[str] = None
-    frequency_type: Optional[str] = None
-    reminder_time: Optional[str] = None
-    minimum_action: Optional[str] = None
-    identity_label: Optional[str] = None
-    is_active: Optional[bool] = None
+    frequency_type: Optional[str] = Field(default=None, validation_alias=AliasChoices("frequencyType", "frequency_type"))
+    reminder_time: Optional[str] = Field(default=None, validation_alias=AliasChoices("reminderTime", "reminder_time"))
+    minimum_action: Optional[str] = Field(default=None, validation_alias=AliasChoices("minimumAction", "minimum_action"))
+    identity_label: Optional[str] = Field(default=None, validation_alias=AliasChoices("identityLabel", "identity_label"))
+    is_active: Optional[bool] = Field(default=None, validation_alias=AliasChoices("isActive", "is_active"))
 
 
 class HabitRead(HabitBase):
     id: int
-    is_checked_in: bool = False
-    is_active: bool = True
+    is_checked_in: bool = Field(default=False)
+    current_streak: int = Field(default=0)
+    is_active: bool = Field(default=True)
     created_at: datetime
     updated_at: datetime
 

@@ -41,9 +41,35 @@ class HabitRepositoryImpl(HabitRepository):
         )
         return row is not None
 
+    def _current_streak(self, habit_id: int) -> int:
+        rows = (
+            self.db.query(HabitCheckinModel)
+            .filter(HabitCheckinModel.habit_id == habit_id)
+            .filter(HabitCheckinModel.status == "completed")
+            .order_by(HabitCheckinModel.date.desc())
+            .all()
+        )
+        if not rows:
+            return 0
+
+        unique_dates = []
+        for row in rows:
+            if not unique_dates or unique_dates[-1] != row.date:
+                unique_dates.append(row.date)
+
+        streak = 1
+        for index in range(1, len(unique_dates)):
+            if (unique_dates[index - 1] - unique_dates[index]).days == 1:
+                streak += 1
+                continue
+            break
+
+        return streak
+
     def _decorate_habit(self, row: HabitModel) -> HabitEntity:
         habit = HabitEntity.from_orm(row)
         habit.is_checked_in = self._is_habit_checked_in(row.id, row.frequency_type)
+        habit.current_streak = self._current_streak(row.id)
         return habit
 
     def list_habits(self, user_id: int) -> List[HabitEntity]:
