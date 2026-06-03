@@ -68,3 +68,16 @@ class AuthService:
             "email": updated_user.email,
             "is_active": updated_user.is_active,
         }
+    
+    def get_user(self, user_id: int):
+        user = self.user_repository.get_by_id(user_id)
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        return {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "is_active": user.is_active,
+        }

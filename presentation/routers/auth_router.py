@@ -32,3 +32,10 @@ def update_user(
         "message": "User updated successfully",
         "data": auth_service.update_user(user_id, data.username, data.email, data.password)
     }
+
+@router.get("/{user_id}", response_model=UserResponse)
+def get_user(
+    user_id: int,
+    auth_service: AuthService = Depends(get_auth_service)
+):
+    return auth_service.get_user(user_id)
