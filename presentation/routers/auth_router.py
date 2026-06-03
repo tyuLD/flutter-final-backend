@@ -22,7 +22,7 @@ def login(
 ):
     return auth_service.login(data.username, data.password)
 
-@router.post("/update/{user_id}", response_model=UpdateUserResponse)
+@router.patch("/update/{user_id}", response_model=UpdateUserResponse)
 def update_user(
     user_id: int,
     data: RegisterRequest,
