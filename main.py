@@ -4,6 +4,7 @@ from infrastructure.db.database import Base, engine
 from infrastructure.db.models.user_model import UserModel
 from infrastructure.db.models.habit_model import HabitModel
 from infrastructure.db.models.habit_checkin_model import HabitCheckinModel
+from infrastructure.db.models.daily_habit_list_model import DailyHabitListModel
 from presentation.routers.auth_router import router as auth_router
 from presentation.routers.habit_router import router as habit_router, calendar_router, stats_router, profile_router
 

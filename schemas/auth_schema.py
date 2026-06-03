@@ -20,3 +20,8 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class UpdateUserResponse(BaseModel):
+    message: str
+    data: UserResponse

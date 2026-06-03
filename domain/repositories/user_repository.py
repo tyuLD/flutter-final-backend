@@ -16,3 +16,7 @@ class UserRepository(ABC):
     @abstractmethod
     def create_user(self, username: str, email: str, hashed_password: str) -> UserEntity:
         pass
+
+    @abstractmethod
+    def get_by_id(self, user_id: int) -> Optional[UserEntity]:
+        pass

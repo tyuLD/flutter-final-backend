@@ -5,6 +5,7 @@ from datetime import date, timedelta
 
 from infrastructure.db.models.habit_model import HabitModel
 from infrastructure.db.models.habit_checkin_model import HabitCheckinModel
+from infrastructure.db.models.daily_habit_list_model import DailyHabitListModel
 from domain.entities.habit import HabitEntity, CheckInEntity
 from domain.repositories.habit_repository import HabitRepository
 
@@ -19,6 +20,35 @@ def _ensure_tables_exist():
 class HabitRepositoryImpl(HabitRepository):
     def __init__(self, db: Session):
         self.db = db
+
+    def _should_attach_to_daily_list(self, frequency_type: str) -> bool:
+        frequency = (frequency_type or "").lower()
+        today = date.today()
+
+        if frequency == "daily":
+            return True
+        if frequency == "weekly":
+            return today.weekday() == 0
+        if frequency == "monthly":
+            return today.day == 1
+        return False
+
+    def _attach_habit_to_daily_list(self, habit_id: int, habit_date: date) -> None:
+        row = (
+            self.db.query(DailyHabitListModel)
+            .filter(DailyHabitListModel.date == habit_date)
+            .first()
+        )
+
+        if not row:
+            row = DailyHabitListModel(date=habit_date, habit_ids=[])
+            self.db.add(row)
+            self.db.flush()
+
+        habit_ids = list(row.habit_ids or [])
+        if habit_id not in habit_ids:
+            habit_ids.append(habit_id)
+            row.habit_ids = habit_ids
 
     def _habit_period_start(self, frequency_type: str) -> date:
         today = date.today()
@@ -68,6 +98,8 @@ class HabitRepositoryImpl(HabitRepository):
 
     def _decorate_habit(self, row: HabitModel) -> HabitEntity:
         habit = HabitEntity.from_orm(row)
+        if self._is_habit_checked_in(row.id, row.frequency_type):
+            pass
         habit.is_checked_in = self._is_habit_checked_in(row.id, row.frequency_type)
         habit.current_streak = self._current_streak(row.id)
         return habit
@@ -77,10 +109,12 @@ class HabitRepositoryImpl(HabitRepository):
         return [self._decorate_habit(r) for r in rows]
 
     def create_habit(self, user_id: int, **data) -> HabitEntity:
-        payload = {**data, "user_id": user_id}
-        habit = HabitModel(**payload)
         try:
+            payload = {**data, "user_id": user_id}
+            habit = HabitModel(**payload)
             self.db.add(habit)
+            self.db.flush()
+
             self.db.commit()
             self.db.refresh(habit)
             return self._decorate_habit(habit)

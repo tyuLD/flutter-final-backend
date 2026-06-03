@@ -51,3 +51,34 @@ class UserRepositoryImpl(UserRepository):
             hashed_password=user.hashed_password,
             is_active=user.is_active,
         )
+    
+    def get_by_id(self, user_id: int):
+        user = self.db.query(UserModel).filter(UserModel.id == user_id).first()
+        if not user:
+            return None
+        return UserEntity(
+            id=user.id,
+            username=user.username,
+            email=user.email,
+            hashed_password=user.hashed_password,
+            is_active=user.is_active,
+        )
+    
+    def update_user(self, user_id: int, username: str, email: str, hashed_password: str):
+        user = self.db.query(UserModel).filter(UserModel.id == user_id).first()
+        if not user:
+            return None
+        
+        user.username = username
+        user.email = email
+        user.hashed_password = hashed_password
+        self.db.commit()
+        self.db.refresh(user)
+
+        return UserEntity(
+            id=user.id,
+            username=user.username,
+            email=user.email,
+            hashed_password=user.hashed_password,
+            is_active=user.is_active,
+        )

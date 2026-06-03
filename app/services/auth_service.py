@@ -42,3 +42,29 @@ class AuthService:
             "message": "login success",
             "username": user.username
         }
+    
+    def update_user(self, user_id: int, username: str, email: str, password: str):
+        user = self.user_repository.get_by_id(user_id)
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        if self.user_repository.get_by_username(username) and self.user_repository.get_by_username(username).id != user_id:
+            raise HTTPException(status_code=400, detail="username already exists")
+
+        if self.user_repository.get_by_email(email) and self.user_repository.get_by_email(email).id != user_id:
+            raise HTTPException(status_code=400, detail="email already exists")
+
+        updated_user = self.user_repository.update_user(
+            user_id=user_id,
+            username=username,
+            email=email,
+            hashed_password=hash_password(password),
+        )
+
+        return {
+            "id": updated_user.id,
+            "username": updated_user.username,
+            "email": updated_user.email,
+            "is_active": updated_user.is_active,
+        }
