@@ -39,3 +39,14 @@ def get_user(
     auth_service: AuthService = Depends(get_auth_service)
 ):
     return auth_service.get_user(user_id)
+
+
+profile_router = APIRouter(prefix="/profile", tags=["Profile"]) 
+
+
+@profile_router.get("/me", response_model=UserResponse)
+def get_user(
+    user_id: int,
+    auth_service: AuthService = Depends(get_auth_service)
+):
+    return auth_service.get_user(user_id)

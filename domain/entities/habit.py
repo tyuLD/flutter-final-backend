@@ -1,6 +1,7 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, date
+from dataclasses import dataclass, field
 
 
 class HabitEntity(BaseModel):
@@ -32,3 +33,34 @@ class CheckInEntity(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+@dataclass
+class DailyTaskRecordItemEntity:
+    id: int
+    record_id: int
+    task_id: int
+    completed_at: datetime
+
+    @classmethod
+    def from_orm(cls, obj) -> "DailyTaskRecordItemEntity":
+        return cls(
+            id=obj.id,
+            record_id=obj.record_id,
+            task_id=obj.task_id,
+            completed_at=obj.completed_at,
+        )
+
+@dataclass
+class DailyTaskRecordEntity:
+    id: int
+    day: date
+    items: List[DailyTaskRecordItemEntity] = field(default_factory=list)
+
+    @classmethod
+    def from_orm(cls, obj) -> "DailyTaskRecordEntity":
+        return cls(
+            id=obj.id,
+            day=obj.day,
+            items=[DailyTaskRecordItemEntity.from_orm(i) for i in obj.items],
+        )

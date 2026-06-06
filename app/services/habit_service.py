@@ -51,6 +51,14 @@ class HabitService:
         if not habit:
             raise ValueError("Habit not found or not owned by user")
         return self.repo.list_checkins(habit_id)
+    
+    def complete_daily_task(self, user_id: int, task_id: int, target_date: Optional[str] = None):
+        # This is a stub implementation. Real implementation should check if task belongs to user and is valid for the day.
+        return self.repo.complete_daily_task(user_id, task_id, target_date=target_date)
+    
+    def daily_task_record(self, user_id: int, target_date: Optional[str] = None):
+        # This is a stub implementation. Real implementation should return the record for the given day.
+        return self.repo.get_daily_task_record(user_id, target_date=target_date)
 
     # Simple stubs for calendar/stats/profile: real implementations should aggregate from repo
     def calendar_overview(self, month: str):

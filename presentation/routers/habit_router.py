@@ -11,6 +11,9 @@ from schemas.habit_schema import (
     CalendarMonthResponse,
     StatsOverviewResponse,
     ProfileResponse,
+    DailyTaskRecordItemResponse,
+    DailyTaskRecordResponse,
+    CompleteDailyTaskRequest
 )
 from app.services.habit_service import HabitService
 from dependencies import get_habit_service
@@ -78,11 +81,41 @@ def list_checkins(habit_id: int, user_id: int = Query(..., description="User ID"
         return habit_service.list_checkins(habit_id, user_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Habit not found or not owned by user")
+    
+
 
 
 # 下面為建議的獨立路由，可按需註冊到 app
 calendar_router = APIRouter(prefix="/calendar", tags=["Calendar"]) 
 
+@calendar_router.post("/day", response_model=DailyTaskRecordItemResponse)
+def complete_daily_task(
+    body: CompleteDailyTaskRequest,
+    task_id: int = Query(..., description="Task ID"),
+    user_id: int = Query(..., description="User ID"),
+    habit_service: HabitService = Depends(get_habit_service),
+):
+    try:
+        return habit_service.complete_daily_task(user_id, task_id, body.date)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+@calendar_router.get("/day/{user_id}", response_model=DailyTaskRecordResponse)
+def daily_task_record(
+    user_id: int,
+    date: str = Query(..., description="Target date (YYYY-MM-DD)"),
+    habit_service: HabitService = Depends(get_habit_service),
+):
+    try:
+        record = habit_service.daily_task_record(user_id, target_date=date)
+        if record is None:
+            raise HTTPException(status_code=404, detail="Daily task record not found")
+
+        return record
+    
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
 
 @calendar_router.get("/overview", response_model=CalendarMonthResponse)
 def calendar_overview(month: str = Query(..., description="YYYY-MM"), user_id: int = Query(None, description="User ID (optional)"), habit_service: HabitService = Depends(get_habit_service)):
@@ -99,9 +132,4 @@ def stats_overview(user_id: int = Query(None, description="User ID (optional)"),
     return habit_service.stats_overview()
 
 
-profile_router = APIRouter(prefix="/profile", tags=["Profile"]) 
 
-
-@profile_router.get("/me", response_model=ProfileResponse)
-def profile_me(user_id: int = Query(None, description="User ID (optional)"), habit_service: HabitService = Depends(get_habit_service)):
-    return habit_service.profile_me()

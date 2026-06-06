@@ -26,6 +26,14 @@ class HabitRepository(ABC):
         pass
 
     @abstractmethod
+    def complete_daily_task(self, user_id: int, task_id: int):
+        pass
+
+    @abstractmethod
+    def get_daily_task_record(self, user_id: int, target_date: Optional[str] = None):
+        pass
+
+    @abstractmethod
     def create_checkin(self, habit_id: int, **data) -> CheckInEntity:
         pass
 

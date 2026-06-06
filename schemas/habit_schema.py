@@ -80,6 +80,29 @@ class StatsOverviewResponse(BaseModel):
     streak_distribution: Dict[str, int]
     top_habits: List[Dict[str, Optional[str]]]
 
+# --- Item ---
+class DailyTaskRecordItemResponse(BaseModel):
+    id: int
+    task_id: int
+    completed_at: datetime
+
+    class Config:
+        from_attributes = True  # Pydantic v2
+        # orm_mode = True       # Pydantic v1
+
+class CompleteDailyTaskRequest(BaseModel):
+    date: Optional[str] = None
+
+# --- Record ---
+class DailyTaskRecordResponse(BaseModel):
+    id: int
+    day: date
+    items: List[DailyTaskRecordItemResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
 
 class ProfileResponse(BaseModel):
     user: Dict[str, Optional[str]]

@@ -2,10 +2,12 @@ from sqlalchemy.orm import Session
 from typing import List
 from sqlalchemy.exc import ProgrammingError, OperationalError
 from datetime import date, timedelta
-
+from sqlalchemy.orm import selectinload
 from infrastructure.db.models.habit_model import HabitModel
 from infrastructure.db.models.habit_checkin_model import HabitCheckinModel
 from infrastructure.db.models.daily_habit_list_model import DailyHabitListModel
+from infrastructure.db.models.daily_task_records import DailyTaskRecordModel
+from infrastructure.db.models.daily_task_record_items import DailyTaskRecordItemModel
 from domain.entities.habit import HabitEntity, CheckInEntity
 from domain.repositories.habit_repository import HabitRepository
 
@@ -169,20 +171,117 @@ class HabitRepositoryImpl(HabitRepository):
         checkin = HabitCheckinModel(**payload)
         try:
             self.db.add(checkin)
+            self.db.flush()  # 先 flush，讓 checkin 有 id 但還沒 commit
+
+            # ✅ 打卡成功後，把這個 habit 加到今天的 daily record
+            self._add_to_daily_record(user_id=data.get("user_id"), task_id=habit_id)
+
             self.db.commit()
             self.db.refresh(checkin)
             return CheckInEntity.from_orm(checkin)
+
         except (ProgrammingError, OperationalError):
             self.db.rollback()
             _ensure_tables_exist()
             try:
                 self.db.add(checkin)
+                self.db.flush()
+                self._add_to_daily_record(user_id=data.get("user_id"), task_id=habit_id)
                 self.db.commit()
                 self.db.refresh(checkin)
                 return CheckInEntity.from_orm(checkin)
             except Exception:
                 self.db.rollback()
                 raise
+
+    def _add_to_daily_record(self,user_id: int, task_id: int):
+        today = date.today()
+
+        # Step 1: 取得今天的 daily_task_record，沒有就建一個
+        record = (
+            self.db.query(DailyTaskRecordModel)
+            .filter(DailyTaskRecordModel.day == today)
+            .first()
+        )
+        if not record:
+            record = DailyTaskRecordModel(day=today)
+            self.db.add(record)
+            self.db.flush()  # 要先 flush 才有 record.id
+
+        # Step 2: 檢查這個 task 今天是否已加過（防止重複）
+        existing = (
+            self.db.query(DailyTaskRecordItemModel)
+            .filter(
+                DailyTaskRecordItemModel.record_id == record.id,
+                DailyTaskRecordItemModel.task_id == task_id,
+            )
+            .first()
+        )
+        if not existing:
+            item = DailyTaskRecordItemModel(record_id=record.id, task_id=task_id)
+            self.db.add(item)
+
+    def complete_daily_task(self, user_id: int, task_id: int, target_date: date | None = None):
+        target_date = target_date or date.today()
+
+        # Step 1: 找這個使用者在這一天的 daily record，沒有就建立
+        record = (
+            self.db.query(DailyTaskRecordModel)
+            .filter(
+                DailyTaskRecordModel.user_id == user_id,
+                DailyTaskRecordModel.day == target_date,
+            )
+            .first()
+        )
+
+        if not record:
+            record = DailyTaskRecordModel(
+                user_id=user_id,
+                day=target_date,
+            )
+            self.db.add(record)
+            self.db.flush()
+
+        # Step 2: 檢查這個 task 今天是否已完成過
+        existing = (
+            self.db.query(DailyTaskRecordItemModel)
+            .filter(
+                DailyTaskRecordItemModel.record_id == record.id,
+                DailyTaskRecordItemModel.user_id == user_id,
+                DailyTaskRecordItemModel.task_id == task_id,
+            )
+            .first()
+        )
+
+        if existing:
+            return existing
+
+        # Step 3: 建立完成紀錄
+        item = DailyTaskRecordItemModel(
+            record_id=record.id,
+            user_id=user_id,
+            task_id=task_id,
+        )
+        self.db.add(item)
+
+        try:
+            self.db.commit()
+            self.db.refresh(item)
+            return item
+        except:
+            self.db.rollback()
+            raise ValueError("This task has already been completed for this user on this day.")
+        
+    def get_daily_task_record(self, user_id: int, target_date: date):
+        return (
+            self.db.query(DailyTaskRecordModel)
+            .options(selectinload(DailyTaskRecordModel.items))
+            .filter(
+                DailyTaskRecordModel.user_id == user_id,
+                DailyTaskRecordModel.day == target_date,
+            )
+            .first()
+        )
 
     def delete_checkins_for_period(self, habit_id: int) -> None:
         """Delete any 'completed' checkins for the habit within the current period.
