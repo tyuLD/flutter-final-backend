@@ -8,7 +8,8 @@ from infrastructure.db.models.daily_task_record_items import DailyTaskRecordItem
 from infrastructure.db.models.habit_checkin_model import HabitCheckinModel
 from infrastructure.db.models.daily_habit_list_model import DailyHabitListModel
 from presentation.routers.auth_router import router as auth_router,profile_router
-from presentation.routers.habit_router import router as habit_router, calendar_router, stats_router
+from presentation.routers.habit_router import router as habit_router, stats_router
+from presentation.routers.calendar_router import router as calendar_router
 
 Base.metadata.create_all(bind=engine)
 

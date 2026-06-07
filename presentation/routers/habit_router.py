@@ -8,12 +8,7 @@ from schemas.habit_schema import (
     HabitUpdate,
     CheckInCreate,
     CheckInRead,
-    CalendarMonthResponse,
-    StatsOverviewResponse,
-    ProfileResponse,
-    DailyTaskRecordItemResponse,
-    DailyTaskRecordResponse,
-    CompleteDailyTaskRequest
+    # ProfileResponse,
 )
 from app.services.habit_service import HabitService
 from dependencies import get_habit_service
@@ -81,50 +76,15 @@ def list_checkins(habit_id: int, user_id: int = Query(..., description="User ID"
         return habit_service.list_checkins(habit_id, user_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Habit not found or not owned by user")
-    
-
-
-
-# 下面為建議的獨立路由，可按需註冊到 app
-calendar_router = APIRouter(prefix="/calendar", tags=["Calendar"]) 
-
-@calendar_router.post("/day", response_model=DailyTaskRecordItemResponse)
-def complete_daily_task(
-    body: CompleteDailyTaskRequest,
-    task_id: int = Query(..., description="Task ID"),
-    user_id: int = Query(..., description="User ID"),
-    habit_service: HabitService = Depends(get_habit_service),
-):
-    try:
-        return habit_service.complete_daily_task(user_id, task_id, body.date)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    
-@calendar_router.get("/day/{user_id}", response_model=DailyTaskRecordResponse)
-def daily_task_record(
-    user_id: int,
-    date: str = Query(..., description="Target date (YYYY-MM-DD)"),
-    habit_service: HabitService = Depends(get_habit_service),
-):
-    try:
-        return habit_service.daily_task_record(user_id, target_date=date)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    
-
-@calendar_router.get("/overview", response_model=CalendarMonthResponse)
-def calendar_overview(month: str = Query(..., description="YYYY-MM"), user_id: int = Query(None, description="User ID (optional)"), habit_service: HabitService = Depends(get_habit_service)):
-    # current implementation aggregates across all users; later can scope by user_id
-    return habit_service.calendar_overview(month)
 
 
 stats_router = APIRouter(prefix="/stats", tags=["Stats"]) 
 
 
-@stats_router.get("/overview", response_model=StatsOverviewResponse)
-def stats_overview(user_id: int = Query(None, description="User ID (optional)"), habit_service: HabitService = Depends(get_habit_service)):
-    # current implementation aggregates across all users; later can scope by user_id
-    return habit_service.stats_overview()
+# @stats_router.get("/overview", response_model=StatsOverviewResponse)
+# def stats_overview(user_id: int = Query(None, description="User ID (optional)"), habit_service: HabitService = Depends(get_habit_service)):
+#     # current implementation aggregates across all users; later can scope by user_id
+#     return habit_service.stats_overview()
 
 
 

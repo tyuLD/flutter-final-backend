@@ -1,0 +1,70 @@
+from datetime import date
+from sqlalchemy.orm import Session, selectinload
+
+from domain.repositories.calendar_repository import CalendarRepository
+from infrastructure.db.models.daily_task_records import DailyTaskRecordModel
+from infrastructure.db.models.daily_task_record_items import DailyTaskRecordItemModel
+
+class CalendarRepositoryImpl(CalendarRepository):
+    def __init__(self, db: Session):
+        self.db = db
+
+    def _get_or_create_record(self, user_id: int, target_date: date) -> DailyTaskRecordModel:
+        record = (
+            self.db.query(DailyTaskRecordModel)
+            .options(selectinload(DailyTaskRecordModel.items))
+            .filter(
+                DailyTaskRecordModel.user_id == user_id,
+                DailyTaskRecordModel.day == target_date,
+            )
+            .first()
+        )
+
+        if record:
+            return record
+
+        record = DailyTaskRecordModel(
+            user_id=user_id,
+            day=target_date,
+        )
+        self.db.add(record)
+        self.db.commit()
+        self.db.refresh(record)
+
+        return (
+            self.db.query(DailyTaskRecordModel)
+            .options(selectinload(DailyTaskRecordModel.items))
+            .filter(DailyTaskRecordModel.id == record.id)
+            .first()
+        )
+
+    def add_daily_task(self, user_id: int, task_id: int, target_date: date | None = None):
+        target_date = target_date or date.today()
+        record = self._get_or_create_record(user_id, target_date)
+
+        existing = (
+            self.db.query(DailyTaskRecordItemModel)
+            .filter(
+                DailyTaskRecordItemModel.record_id == record.id,
+                DailyTaskRecordItemModel.user_id == user_id,
+                DailyTaskRecordItemModel.task_id == task_id,
+            )
+            .first()
+        )
+
+        if existing:
+            return existing
+
+        item = DailyTaskRecordItemModel(
+            user_id=user_id,
+            record_id=record.id,
+            task_id=task_id,
+        )
+        self.db.add(item)
+        self.db.commit()
+        self.db.refresh(item)
+        return item
+
+    def get_daily_task_record(self, user_id: int, target_date: date):
+        return self._get_or_create_record(user_id, target_date)
+    

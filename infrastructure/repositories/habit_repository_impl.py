@@ -173,9 +173,6 @@ class HabitRepositoryImpl(HabitRepository):
         try:
             self.db.add(checkin)
             self.db.flush()
-
-            self._add_to_daily_record(user_id=user_id, task_id=habit_id)
-
             self.db.commit()
             self.db.refresh(checkin)
             return CheckInEntity.from_orm(checkin)
@@ -186,7 +183,6 @@ class HabitRepositoryImpl(HabitRepository):
             try:
                 self.db.add(checkin)
                 self.db.flush()
-                self._add_to_daily_record(user_id=user_id, task_id=habit_id)
                 self.db.commit()
                 self.db.refresh(checkin)
                 return CheckInEntity.from_orm(checkin)
@@ -194,123 +190,6 @@ class HabitRepositoryImpl(HabitRepository):
                 self.db.rollback()
                 raise
 
-    def _add_to_daily_record(self, user_id: int, task_id: int):
-        today = date.today()
-
-        record = (
-            self.db.query(DailyTaskRecordModel)
-            .filter(
-                DailyTaskRecordModel.user_id == user_id,
-                DailyTaskRecordModel.day == today,
-            )
-            .first()
-        )
-
-        if not record:
-            record = DailyTaskRecordModel(
-                user_id=user_id,
-                day=today,
-            )
-            self.db.add(record)
-            self.db.flush()
-
-        existing = (
-            self.db.query(DailyTaskRecordItemModel)
-            .filter(
-                DailyTaskRecordItemModel.record_id == record.id,
-                DailyTaskRecordItemModel.user_id == user_id,
-                DailyTaskRecordItemModel.task_id == task_id,
-            )
-            .first()
-        )
-
-        if not existing:
-            item = DailyTaskRecordItemModel(
-                user_id=user_id,
-                record_id=record.id,
-                task_id=task_id,
-            )
-            self.db.add(item)
-
-    def complete_daily_task(self, user_id: int, task_id: int, target_date: date | None = None):
-        target_date = target_date or date.today()
-
-        # Step 1: 找這個使用者在這一天的 daily record，沒有就建立
-        record = (
-            self.db.query(DailyTaskRecordModel)
-            .filter(
-                DailyTaskRecordModel.user_id == user_id,
-                DailyTaskRecordModel.day == target_date,
-            )
-            .first()
-        )
-
-        if not record:
-            record = DailyTaskRecordModel(
-                user_id=user_id,
-                day=target_date,
-            )
-            self.db.add(record)
-            self.db.flush()
-
-        # Step 2: 檢查這個 task 今天是否已完成過
-        existing = (
-            self.db.query(DailyTaskRecordItemModel)
-            .filter(
-                DailyTaskRecordItemModel.record_id == record.id,
-                DailyTaskRecordItemModel.user_id == user_id,
-                DailyTaskRecordItemModel.task_id == task_id,
-            )
-            .first()
-        )
-
-        if existing:
-            return existing
-
-        # Step 3: 建立完成紀錄
-        item = DailyTaskRecordItemModel(
-            record_id=record.id,
-            user_id=user_id,
-            task_id=task_id,
-        )
-        self.db.add(item)
-
-        try:
-            self.db.commit()
-            self.db.refresh(item)
-            return item
-        except:
-            self.db.rollback()
-            raise ValueError("This task has already been completed for this user on this day.")
-        
-    def get_daily_task_record(self, user_id: int, target_date: date):
-        record = (
-            self.db.query(DailyTaskRecordModel)
-            .options(selectinload(DailyTaskRecordModel.items))
-            .filter(
-                DailyTaskRecordModel.user_id == user_id,
-                DailyTaskRecordModel.day == target_date,
-            )
-            .first()
-        )
-
-        if record:
-            return record
-
-        record = DailyTaskRecordModel(
-            user_id=user_id,
-            day=target_date,
-        )
-        self.db.add(record)
-        self.db.commit()
-        self.db.refresh(record)
-
-        return (
-            self.db.query(DailyTaskRecordModel)
-            .options(selectinload(DailyTaskRecordModel.items))
-            .filter(DailyTaskRecordModel.id == record.id)
-            .first()
-        )
 
     def delete_checkins_for_period(self, habit_id: int) -> None:
         """Delete any 'completed' checkins for the habit within the current period.

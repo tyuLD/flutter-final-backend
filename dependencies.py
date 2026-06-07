@@ -12,9 +12,27 @@ def get_auth_service(db: Session = Depends(get_db)):
 
 
 def get_habit_service(db: Session = Depends(get_db)):
-    """延遲 import 以避免在尚未實作 repository/service 時造成匯入錯誤。"""
     from infrastructure.repositories.habit_repository_impl import HabitRepositoryImpl
+    from infrastructure.repositories.calendar_repository_impl import CalendarRepositoryImpl
     from app.services.habit_service import HabitService
 
     habit_repository = HabitRepositoryImpl(db)
-    return HabitService(habit_repository)
+    calendar_repository = CalendarRepositoryImpl(db)
+
+    return HabitService(habit_repository, calendar_repository)
+
+
+def get_calendar_repository(db: Session = Depends(get_db)):
+    """獨立提供 CalendarRepository，方便 service 或測試直接注入。"""
+    from infrastructure.repositories.calendar_repository_impl import CalendarRepositoryImpl
+
+    return CalendarRepositoryImpl(db)
+
+
+def get_calendar_service(db: Session = Depends(get_db)):
+    """延遲 import，避免 calendar service / repository 尚未完成時循環匯入。"""
+    from infrastructure.repositories.calendar_repository_impl import CalendarRepositoryImpl
+    from app.services.calendar_service import CalendarService
+
+    calendar_repository = CalendarRepositoryImpl(db)
+    return CalendarService(calendar_repository)
