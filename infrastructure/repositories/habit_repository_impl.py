@@ -166,15 +166,15 @@ class HabitRepositoryImpl(HabitRepository):
         self.db.delete(row)
         self.db.commit()
 
-    def create_checkin(self, habit_id: int, **data) -> CheckInEntity:
+    def create_checkin(self, habit_id: int, user_id: int, **data) -> CheckInEntity:
         payload = {**data, "habit_id": habit_id}
         checkin = HabitCheckinModel(**payload)
+
         try:
             self.db.add(checkin)
-            self.db.flush()  # 先 flush，讓 checkin 有 id 但還沒 commit
+            self.db.flush()
 
-            # ✅ 打卡成功後，把這個 habit 加到今天的 daily record
-            self._add_to_daily_record(user_id=data.get("user_id"), task_id=habit_id)
+            self._add_to_daily_record(user_id=user_id, task_id=habit_id)
 
             self.db.commit()
             self.db.refresh(checkin)
@@ -186,7 +186,7 @@ class HabitRepositoryImpl(HabitRepository):
             try:
                 self.db.add(checkin)
                 self.db.flush()
-                self._add_to_daily_record(user_id=data.get("user_id"), task_id=habit_id)
+                self._add_to_daily_record(user_id=user_id, task_id=habit_id)
                 self.db.commit()
                 self.db.refresh(checkin)
                 return CheckInEntity.from_orm(checkin)
@@ -194,31 +194,42 @@ class HabitRepositoryImpl(HabitRepository):
                 self.db.rollback()
                 raise
 
-    def _add_to_daily_record(self,user_id: int, task_id: int):
+    def _add_to_daily_record(self, user_id: int, task_id: int):
         today = date.today()
 
-        # Step 1: 取得今天的 daily_task_record，沒有就建一個
         record = (
             self.db.query(DailyTaskRecordModel)
-            .filter(DailyTaskRecordModel.day == today)
+            .filter(
+                DailyTaskRecordModel.user_id == user_id,
+                DailyTaskRecordModel.day == today,
+            )
             .first()
         )
-        if not record:
-            record = DailyTaskRecordModel(day=today)
-            self.db.add(record)
-            self.db.flush()  # 要先 flush 才有 record.id
 
-        # Step 2: 檢查這個 task 今天是否已加過（防止重複）
+        if not record:
+            record = DailyTaskRecordModel(
+                user_id=user_id,
+                day=today,
+            )
+            self.db.add(record)
+            self.db.flush()
+
         existing = (
             self.db.query(DailyTaskRecordItemModel)
             .filter(
                 DailyTaskRecordItemModel.record_id == record.id,
+                DailyTaskRecordItemModel.user_id == user_id,
                 DailyTaskRecordItemModel.task_id == task_id,
             )
             .first()
         )
+
         if not existing:
-            item = DailyTaskRecordItemModel(record_id=record.id, task_id=task_id)
+            item = DailyTaskRecordItemModel(
+                user_id=user_id,
+                record_id=record.id,
+                task_id=task_id,
+            )
             self.db.add(item)
 
     def complete_daily_task(self, user_id: int, task_id: int, target_date: date | None = None):
@@ -273,13 +284,31 @@ class HabitRepositoryImpl(HabitRepository):
             raise ValueError("This task has already been completed for this user on this day.")
         
     def get_daily_task_record(self, user_id: int, target_date: date):
-        return (
+        record = (
             self.db.query(DailyTaskRecordModel)
             .options(selectinload(DailyTaskRecordModel.items))
             .filter(
                 DailyTaskRecordModel.user_id == user_id,
                 DailyTaskRecordModel.day == target_date,
             )
+            .first()
+        )
+
+        if record:
+            return record
+
+        record = DailyTaskRecordModel(
+            user_id=user_id,
+            day=target_date,
+        )
+        self.db.add(record)
+        self.db.commit()
+        self.db.refresh(record)
+
+        return (
+            self.db.query(DailyTaskRecordModel)
+            .options(selectinload(DailyTaskRecordModel.items))
+            .filter(DailyTaskRecordModel.id == record.id)
             .first()
         )
 

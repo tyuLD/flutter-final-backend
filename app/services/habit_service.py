@@ -37,7 +37,7 @@ class HabitService:
         payload = data.dict()
         # default status to 'completed' for check-in
         payload.setdefault("status", "completed")
-        return self.repo.create_checkin(habit_id, **payload)
+        return self.repo.create_checkin(habit_id, user_id, **payload)
 
     def checkout(self, habit_id: int, user_id: int) -> None:
         # verify habit belongs to user

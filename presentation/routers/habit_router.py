@@ -107,12 +107,7 @@ def daily_task_record(
     habit_service: HabitService = Depends(get_habit_service),
 ):
     try:
-        record = habit_service.daily_task_record(user_id, target_date=date)
-        if record is None:
-            raise HTTPException(status_code=404, detail="Daily task record not found")
-
-        return record
-    
+        return habit_service.daily_task_record(user_id, target_date=date)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     
