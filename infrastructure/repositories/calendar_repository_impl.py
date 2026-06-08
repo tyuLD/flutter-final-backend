@@ -76,18 +76,28 @@ class CalendarRepositoryImpl(CalendarRepository):
             .filter(
                 HabitModel.user_id == user_id,
                 HabitModel.frequency_type == "daily",
-                HabitModel.is_active == True,
+                HabitModel.is_active.is_(True),
             )
             .count()
         )
 
+    def count_active_daily_habits(self, user_id: int) -> int:
+        return self.count_total_daily_habits(user_id)
+
+    def list_active_daily_habits(self, user_id: int):
+        return (
+            self.db.query(HabitModel)
+            .filter(
+                HabitModel.user_id == user_id,
+                HabitModel.frequency_type == "daily",
+                HabitModel.is_active.is_(True),
+            )
+            .all()
+        )
+
     def list_daily_task_records_for_month(self, user_id: int, year: int, month: int):
         start_date = date(year, month, 1)
-
-        if month == 12:
-            end_date = date(year + 1, 1, 1)
-        else:
-            end_date = date(year, month + 1, 1)
+        end_date = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
 
         return (
             self.db.query(DailyTaskRecordModel)
@@ -95,6 +105,22 @@ class CalendarRepositoryImpl(CalendarRepository):
             .filter(DailyTaskRecordModel.user_id == user_id)
             .filter(DailyTaskRecordModel.day >= start_date)
             .filter(DailyTaskRecordModel.day < end_date)
+            .order_by(DailyTaskRecordModel.day.asc())
+            .all()
+        )
+
+    def list_daily_task_records_for_period(
+        self,
+        user_id: int,
+        start_date: date,
+        end_date: date,
+    ):
+        return (
+            self.db.query(DailyTaskRecordModel)
+            .options(selectinload(DailyTaskRecordModel.items))
+            .filter(DailyTaskRecordModel.user_id == user_id)
+            .filter(DailyTaskRecordModel.day >= start_date)
+            .filter(DailyTaskRecordModel.day <= end_date)
             .order_by(DailyTaskRecordModel.day.asc())
             .all()
         )

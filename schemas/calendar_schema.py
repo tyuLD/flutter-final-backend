@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -32,24 +32,30 @@ class MonthlyDailyRecordResponse(BaseModel):
     records: List[DailyTaskRecordResponse] = Field(default_factory=list)
 
 
-class CalendarDay(BaseModel):
-    date: date
-    completion_count: int
-    intensity: int
+class SevenDayDailyRecordResponse(BaseModel):
+    start_date: date
+    end_date: date
+    records: List[DailyTaskRecordResponse] = Field(default_factory=list)
 
 
-class CalendarMonthResponse(BaseModel):
-    month: str
-    summary: Dict[str, Optional[float]]
-    days: List[CalendarDay]
+class OverviewHabitMetricResponse(BaseModel):
+    habit_id: Optional[int] = None
+    habit_name: Optional[str] = None
+    completion_rate: float = 0.0
+    completed_days: int = 0
+    total_days: int = 0
+    current_streak: int = 0
+
+
+class OverviewSummaryResponse(BaseModel):
+    completion_rate: float
+    tracked_habits_count: int
+    best_habit: Optional[OverviewHabitMetricResponse] = None
+    needs_improvement_habit: Optional[OverviewHabitMetricResponse] = None
 
 
 class StatsOverviewResponse(BaseModel):
-    completion_rate: float
-    today_completed: int
-    today_total: int
-    average_streak: float
-    max_streak: int
-    trend_7_days: List[Dict[str, int]]
-    streak_distribution: Dict[str, int]
-    top_habits: List[Dict[str, Optional[str]]]
+    range_start: date
+    range_end: date
+    daily_records: List[DailyTaskRecordResponse] = Field(default_factory=list)
+    summary: OverviewSummaryResponse
