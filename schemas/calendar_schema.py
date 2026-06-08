@@ -20,8 +20,16 @@ class DailyTaskRecordResponse(BaseModel):
     id: int
     day: date
     items: List[DailyTaskRecordItemResponse] = Field(default_factory=list)
+    completed_count: int
+    total_daily_habits: int
+    completion_rate: float
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class MonthlyDailyRecordResponse(BaseModel):
+    month: str
+    records: List[DailyTaskRecordResponse] = Field(default_factory=list)
 
 
 class CalendarDay(BaseModel):

@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.services.calendar_service import CalendarService
 from dependencies import get_calendar_service
 from schemas.calendar_schema import (
-    CalendarMonthResponse,
+    MonthlyDailyRecordResponse,
     DailyTaskRecordItemResponse,
     DailyTaskRecordResponse,
     CompleteDailyTaskRequest,
@@ -39,6 +39,20 @@ def get_daily_task_record(
         return calendar_service.get_daily_task_record(
             user_id=user_id,
             target_date=date,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+@router.get("/month/{user_id}", response_model=MonthlyDailyRecordResponse)
+def get_monthly_daily_records(
+    user_id: int,
+    month: str = Query(..., description="Target month (YYYY-MM)"),
+    calendar_service: CalendarService = Depends(get_calendar_service),
+):
+    try:
+        return calendar_service.get_monthly_daily_records(
+            user_id=user_id,
+            month=month,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

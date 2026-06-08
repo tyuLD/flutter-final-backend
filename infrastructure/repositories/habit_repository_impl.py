@@ -338,3 +338,14 @@ class HabitRepositoryImpl(HabitRepository):
             "summary": {"completion_rate": 0.0, "total_streak": 0, "best_habit": None},
             "settings": {"notifications_enabled": True, "theme": "dark", "timezone": "Asia/Taipei"},
         }
+
+    def count_total_daily_habits(self, user_id: int) -> int:
+        return (
+            self.db.query(HabitModel)
+            .filter(
+                HabitModel.user_id == user_id,
+                HabitModel.frequency_type == "daily",
+                HabitModel.is_active == True,
+            )
+            .count()
+        )

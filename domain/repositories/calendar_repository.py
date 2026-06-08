@@ -11,3 +11,11 @@ class CalendarRepository(ABC):
     @abstractmethod
     def add_daily_task(self, user_id: int, task_id: int):
         pass
+
+    @abstractmethod
+    def count_total_daily_habits(self, user_id: int) -> int:
+        pass
+
+    @abstractmethod
+    def list_daily_task_records_for_month(self, user_id: int, year: int, month: int) -> List[Dict]:
+        pass

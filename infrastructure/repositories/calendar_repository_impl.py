@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session, selectinload
 from domain.repositories.calendar_repository import CalendarRepository
 from infrastructure.db.models.daily_task_records import DailyTaskRecordModel
 from infrastructure.db.models.daily_task_record_items import DailyTaskRecordItemModel
+from infrastructure.db.models.habit_model import HabitModel
+
 
 class CalendarRepositoryImpl(CalendarRepository):
     def __init__(self, db: Session):
@@ -67,4 +69,32 @@ class CalendarRepositoryImpl(CalendarRepository):
 
     def get_daily_task_record(self, user_id: int, target_date: date):
         return self._get_or_create_record(user_id, target_date)
-    
+
+    def count_total_daily_habits(self, user_id: int) -> int:
+        return (
+            self.db.query(HabitModel)
+            .filter(
+                HabitModel.user_id == user_id,
+                HabitModel.frequency_type == "daily",
+                HabitModel.is_active == True,
+            )
+            .count()
+        )
+
+    def list_daily_task_records_for_month(self, user_id: int, year: int, month: int):
+        start_date = date(year, month, 1)
+
+        if month == 12:
+            end_date = date(year + 1, 1, 1)
+        else:
+            end_date = date(year, month + 1, 1)
+
+        return (
+            self.db.query(DailyTaskRecordModel)
+            .options(selectinload(DailyTaskRecordModel.items))
+            .filter(DailyTaskRecordModel.user_id == user_id)
+            .filter(DailyTaskRecordModel.day >= start_date)
+            .filter(DailyTaskRecordModel.day < end_date)
+            .order_by(DailyTaskRecordModel.day.asc())
+            .all()
+        )
