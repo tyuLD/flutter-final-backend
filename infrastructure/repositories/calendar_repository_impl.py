@@ -66,6 +66,61 @@ class CalendarRepositoryImpl(CalendarRepository):
         self.db.commit()
         self.db.refresh(item)
         return item
+    
+    def remove_daily_task(
+        self,
+        user_id: int,
+        task_id: int,
+        target_date: date | None = None,
+    ) -> bool:
+        target_date = target_date or date.today()
+
+        record = (
+            self.db.query(DailyTaskRecordModel)
+            .options(selectinload(DailyTaskRecordModel.items))
+            .filter(
+                DailyTaskRecordModel.user_id == user_id,
+                DailyTaskRecordModel.day == target_date,
+            )
+            .first()
+        )
+
+        if not record:
+            return False
+
+        item = (
+            self.db.query(DailyTaskRecordItemModel)
+            .filter(
+                DailyTaskRecordItemModel.record_id == record.id,
+                DailyTaskRecordItemModel.user_id == user_id,
+                DailyTaskRecordItemModel.task_id == task_id,
+            )
+            .first()
+        )
+
+        if not item:
+            return False
+
+        self.db.delete(item)
+        self.db.commit()
+
+        remaining_count = (
+            self.db.query(DailyTaskRecordItemModel)
+            .filter(DailyTaskRecordItemModel.record_id == record.id)
+            .count()
+        )
+
+        if remaining_count == 0:
+            empty_record = (
+                self.db.query(DailyTaskRecordModel)
+                .filter(DailyTaskRecordModel.id == record.id)
+                .first()
+            )
+            if empty_record:
+                self.db.delete(empty_record)
+                self.db.commit()
+
+        return True
 
     def get_daily_task_record(self, user_id: int, target_date: date):
         return self._get_or_create_record(user_id, target_date)

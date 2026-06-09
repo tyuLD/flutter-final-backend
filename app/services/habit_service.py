@@ -2,6 +2,8 @@ from typing import List, Optional
 from domain.repositories.habit_repository import HabitRepository
 from domain.repositories.calendar_repository import CalendarRepository
 from domain.entities.habit import HabitEntity, CheckInEntity
+from datetime import date
+
 from schemas.habit_schema import (
     HabitCreate,
     HabitUpdate,
@@ -58,11 +60,20 @@ class HabitService:
         return checkin
 
     def checkout(self, habit_id: int, user_id: int) -> None:
-        # verify habit belongs to user
         habit = self.get_habit(habit_id, user_id=user_id)
         if not habit:
             raise ValueError("Habit not found or not owned by user")
-        return self.habit_repo.delete_checkins_for_period(habit_id)
+
+        self.habit_repo.delete_checkins_for_period(habit_id)
+        target_date = date.today()
+
+        self.calendar_repo.remove_daily_task(
+            user_id=user_id,
+            task_id=habit_id,
+            target_date=target_date,
+        )
+
+        return None
 
     def list_checkins(self, habit_id: int, user_id: int) -> List[CheckInEntity]:
         habit = self.get_habit(habit_id, user_id=user_id)

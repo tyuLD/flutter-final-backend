@@ -18,6 +18,15 @@ class CalendarRepository(ABC):
         pass
 
     @abstractmethod
+    def remove_daily_task(
+        self,
+        user_id: int,
+        task_id: int,
+        target_date: Optional[date] = None,
+    ) -> bool:
+        pass
+
+    @abstractmethod
     def count_total_daily_habits(self, user_id: int) -> int:
         pass
 
