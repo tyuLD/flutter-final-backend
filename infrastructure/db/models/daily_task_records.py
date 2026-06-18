@@ -12,10 +12,10 @@ class DailyTaskRecordModel(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, nullable=False, index=True)
-    day = Column(Date, nullable=False, unique=True, index=True)
+    day = Column(Date, nullable=False, index=True)
 
     items = relationship(
-        "DailyTaskRecordItemModel",          # ← class 名稱
+        "DailyTaskRecordItemModel",
         back_populates="record",
         cascade="all, delete-orphan"
     )

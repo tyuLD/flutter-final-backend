@@ -1,5 +1,6 @@
 from datetime import date
 from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.exc import IntegrityError
 
 from domain.repositories.calendar_repository import CalendarRepository
 from infrastructure.db.models.daily_task_records import DailyTaskRecordModel
@@ -11,7 +12,11 @@ class CalendarRepositoryImpl(CalendarRepository):
     def __init__(self, db: Session):
         self.db = db
 
-    def _get_or_create_record(self, user_id: int, target_date: date) -> DailyTaskRecordModel:
+    def _get_or_create_record(
+        self,
+        user_id: int,
+        target_date: date,
+    ) -> DailyTaskRecordModel:
         record = (
             self.db.query(DailyTaskRecordModel)
             .options(selectinload(DailyTaskRecordModel.items))
@@ -30,15 +35,23 @@ class CalendarRepositoryImpl(CalendarRepository):
             day=target_date,
         )
         self.db.add(record)
-        self.db.commit()
-        self.db.refresh(record)
+
+        try:
+            self.db.commit()
+            self.db.refresh(record)
+        except IntegrityError:
+            self.db.rollback()
 
         return (
             self.db.query(DailyTaskRecordModel)
             .options(selectinload(DailyTaskRecordModel.items))
-            .filter(DailyTaskRecordModel.id == record.id)
+            .filter(
+                DailyTaskRecordModel.user_id == user_id,
+                DailyTaskRecordModel.day == target_date,
+            )
             .first()
         )
+
 
     def add_daily_task(self, user_id: int, task_id: int, target_date: date | None = None):
         target_date = target_date or date.today()
