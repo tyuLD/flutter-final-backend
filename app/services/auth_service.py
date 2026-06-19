@@ -4,20 +4,14 @@ from fastapi import HTTPException, status
 
 from core.security import hash_password, verify_password
 from domain.repositories.user_repository import UserRepository
-from domain.repositories.habit_repository import HabitRepository
-from domain.repositories.calendar_repository import CalendarRepository
 
 
 class AuthService:
     def __init__(
         self,
         user_repository: UserRepository,
-        habit_repository: HabitRepository,
-        calendar_repository: CalendarRepository,
     ):
         self.user_repository = user_repository
-        self.habit_repository = habit_repository
-        self.calendar_repository = calendar_repository
 
     def register(self, username: str, email: str, password: str):
         if self.user_repository.get_by_username(username):
